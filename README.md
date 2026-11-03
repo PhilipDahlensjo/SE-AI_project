@@ -8,8 +8,8 @@
 |---|---|---|
 | Filip Kadmark | Hanyang University | filipkadmark@gmail.com |
 | Philip Dahlensjoe | Hanyang University | philip.dahlensjo@gmail.com |
-| Jasmin Hansson | Hanyang University | EMAIL |
-| Lucas Roy-Picard | Hanyang University | EMAIL |
+| Jasmin Hansson | Hanyang University | jassehansson2014@gmail.com |
+| Lucas Roy-Picard | Hanyang University | lucas.roy-picard.1@ens.etsmtla.ca |
 
 ## Research idea
 
