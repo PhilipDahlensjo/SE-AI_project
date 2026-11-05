@@ -47,7 +47,7 @@ and explains every decision. The final demo for LG is on **Dec. 11, 2026**.
 - C. Design and D. Implementation are submitted together later. E. Presentation, user guide, installation guide.
 - The professor asked us **not** to split requirements into FR/NFR at this stage. `main.tex` uses
   one list, R1–R9, and section IV has one specification per requirement with the same numbering.
-  R4 (price and usage forecasting) is the AI course part. `main.tex` is the source of truth for
+  R4 (price and usage forecasting) is the AI course part, so it is a Must. `main.tex` is the source of truth for
   the requirements; keep this file in sync if they change.
 
 ## Repository and workflow
