@@ -6,7 +6,7 @@
 EnergyPilot is a proactive agentic home energy optimizer. The resident states an intent
 ("laundry done by 07:00, keep the cost low") and the agent schedules flexible appliances
 (washing machine, dryer, dishwasher, one climate device) to the cheapest suitable hours.
-It predicts electricity prices and household usage, acts on its own or asks for approval,
+It predicts electricity prices and household usage, proposes a schedule that the resident accepts or changes,
 and explains every decision. The final demo for LG is on **Dec. 11, 2026**.
 
 ## Two courses, one project
@@ -19,8 +19,9 @@ and explains every decision. The final demo for LG is on **Dec. 11, 2026**.
   when writing author lists for each course.
 
 ## Key design rules
-- The language model only interprets intents and writes explanations. It **never decides start
-  times**. A deterministic scheduler calculates them, so the result is testable.
+- The language model is optional and only reads free-text intents (R2, a Could). It **never decides start
+  times**. A deterministic scheduler calculates them, so the result is testable. Explanations are text
+  templates filled with numbers from the scheduler.
 - Every plan is checked against hard rules (deadlines, quiet hours, safety) before it runs.
 - Manual override by the user always wins.
 - Appliances, prices and usage are simulated behind an interface, so real devices can replace them later.
@@ -31,6 +32,8 @@ and explains every decision. The final demo for LG is on **Dec. 11, 2026**.
   forecasts to decide when appliances run and how much a household saves.
 - Possible data (not decided): hourly day-ahead prices from Nord Pool / ENTSO-E, and the UCI
   "Individual Household Electric Power Consumption" dataset (sub-meters split kitchen and laundry room).
+- Note: the UCI data is one French household (2006–2010) and the prices are from other years, so the two
+  cannot be joined by date. Use them as typical daily/weekly patterns. Check the data access terms first.
 - The repo README is the course blog. Progress is reported there.
 
 ## SE course deliverables
@@ -43,16 +46,18 @@ and explains every decision. The final demo for LG is on **Dec. 11, 2026**.
   requirement: implementation at pseudocode level, diagrams recommended).
 - C. Design and D. Implementation are submitted together later. E. Presentation, user guide, installation guide.
 - The professor asked us **not** to split requirements into FR/NFR at this stage. `main.tex` uses
-  one list, R1–R11, and section IV has one specification per requirement with the same numbering.
-  R4 (price and usage forecasting) is the AI course part. `main.tex` is the source of truth for
+  one list, R1–R9, and section IV has one specification per requirement with the same numbering.
+  R4 (price and usage forecasting) is the AI course part, so it is a Must. `main.tex` is the source of truth for
   the requirements; keep this file in sync if they change.
 
 ## Repository and workflow
 - One shared GitHub repo for both courses: `SE-AI_project`.
 - Now: `README.md` (AI course blog), `main.tex` + `EnergyPilot_A_B.pdf` (SE documents), `CLAUDE.md`.
-- Planned when coding starts: `ai/` (forecasting), `backend/` (agent, scheduler, API), `frontend/` (UI).
+- Planned when coding starts: `ai/` (forecasting) and `app/` (Streamlit app with scheduler and simulator).
   Don't move `main.tex` without asking the group.
-- Language, frameworks and how to run the code: **not decided yet**. Ask before choosing.
+- Stack (decided in B, Nov. 5): Python 3.12 only, Streamlit for the interface, SQLite (one file) for data,
+  pandas/NumPy/scikit-learn, pytest. Run locally with `streamlit run app.py`. No login, no Docker, no separate
+  frontend or API server; cloud is an optional bonus. Ask the group before adding anything else.
 - Work on a branch and open a pull request. Never push directly to `main`. Another member reviews.
 - Tasks are tracked as GitHub Issues. Discussions happen in Slack, but decisions are written into the repo.
 - All members use Claude Pro. Each member must be able to explain their own part at the demo.
