@@ -142,7 +142,7 @@ When the price forecast changes, the agent can plan the runs that have not start
 
 \textbf{Version control and documents.} The code and this document are in a public GitHub repository, \url{https://github.com/PhilipDahlensjo/SE-AI_project}. The documents are LaTeX files in the repository (IEEEtran, also usable in Overleaf). We track work with issues and pull requests, and each issue names the requirement it implements.
 
-\textbf{Development environment.} Table~\ref{tab:env} lists what we use. Exact library versions are fixed in \texttt{requirements.txt} in the repository.
+\textbf{Development environment.} Table~\ref{tab:env} lists what we use. Exact library versions will be fixed in \texttt{requirements.txt} in the repository when implementation starts.
 
 \begin{table}[t]
 \caption{Development environment}
@@ -350,7 +350,7 @@ The explanation is a text template filled with numbers from the scheduler, so it
 \Procedure{Explain}{$r$}
 \State $base \gets$ cost if started at the earliest allowed time
 \State $pct \gets 100\,(base - r.cost)/base$
-\State $text \gets r.device$ at $r.start$, $pct$\,\% cheaper than $i.earliest$
+\State $text \gets r.device$ at $r.start$, $pct$\,\% cheaper than $r.intent.earliest$
 \State \Call{Save}{Log(now, $r$, $text$)}
 \EndProcedure
 \end{pseudo}
