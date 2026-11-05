@@ -10,6 +10,7 @@
 | Philip Dahlensjoe | Hanyang University | philip.dahlensjo@gmail.com |
 | Jasmin Hansson | Hanyang University | jassehansson2014@gmail.com |
 | Lucas Roy-Picard | Hanyang University | lucas.roy-picard.1@ens.etsmtla.ca |
+| Emil Nilsson Ljungdell | Hanyang University | emil.ljungdell@gmail.com |
 
 ## Research idea
 
