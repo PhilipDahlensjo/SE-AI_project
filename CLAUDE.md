@@ -50,6 +50,22 @@ and explains every decision. The final demo for LG is on **Dec. 11, 2026**.
   R4 (price and usage forecasting) is the AI course part, so it is a Must. `main.tex` is the source of truth for
   the requirements; keep this file in sync if they change.
 
+## Work split (agreed Nov. 12, can change)
+Requirement numbers R1–R9 refer to `main.tex`. Each person owns their part and writes its tests.
+
+| Person | Part | Requirements |
+|---|---|---|
+| Jasmin Hansson | Streamlit app, SQLite database, forms for appliances and intents, override | R1, R2, R7 |
+| Filip Kadmark | Scheduler (picks the cheapest allowed start time), explanations, replanning | R5, R6, R9 |
+| Emil Ljungdell | Electricity prices (synthetic tariff, price file) and savings report | R3, R8 |
+| Philip Dahlensjö + Lucas Roy-Picard | Price and usage forecasting, data analysis, AI course blog | R4 |
+
+- Emil is SE only, so he does not own AI course parts. Lucas is AI only, so his work stays in `ai/`.
+- Shared interfaces between the parts (forecast format, `Intent`, `Run`) are agreed by the group
+  first and written here before anyone builds on them. Don't change a shared interface without asking.
+- When you work on a task, stay inside your own part. If a change is needed in someone else's part,
+  say so and ask instead of editing it.
+
 ## Repository and workflow
 - One shared GitHub repo for both courses: `SE-AI_project`.
 - Now: `README.md` (AI course blog), `main.tex` + `EnergyPilot_A_B.pdf` (SE documents), `CLAUDE.md`.
