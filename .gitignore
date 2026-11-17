@@ -1,0 +1,5 @@
+# Python virtual environment
+.venv/
+
+# Downloaded datasets (too large for GitHub, each member downloads them)
+ai/data/
