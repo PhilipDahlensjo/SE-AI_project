@@ -113,7 +113,7 @@ The user registers an appliance with its name, type, power in watts and typical 
 The user fills in a short form: which appliance, the earliest start and the deadline, for example ``done by 07:00''. The system shows how it understood the intent before planning. Writing the intent as free text, read by an LLM, is a Could.
 
 \subsection{R3: Electricity prices (Must)}
-The system has hourly prices for the next 48 hours. We start with a synthetic time-of-use tariff, and public price data can be loaded from a file.
+The system has a price for every 15-minute slot of the next 48 hours, starting at midnight today. The first version uses a made-up daily price pattern, cheap at night and expensive in the morning and evening. Real prices from the Korea Power Exchange (KPX) can replace it later in the same file format.
 
 \subsection{R4: Price and usage forecast (Must)}
 The system predicts hourly prices and household consumption for the coming day, using two methods and keeping the one with the lowest error.
@@ -282,20 +282,12 @@ The form gives the planner everything it needs. The plan is shown as a proposal,
 \end{pseudo}
 
 \subsection{R3: Electricity prices}
-Prices are read from the database, and missing slots are filled from the synthetic tariff (three price levels over the day plus noise) or from a public price file.
+The price file \texttt{app/prices.csv} holds one day: a price in KRW/kWh for each of the 96 15-minute slots. \textsc{GetPrices} (\texttt{load\_prices()} in \texttt{app/prices.py}) uses that day twice from midnight of the chosen day, so the prices never go out of date. The result has the columns \texttt{start} and \texttt{price}, one row per slot (192 rows), which is the format the scheduler and the interface use.
 \begin{pseudo}
-\Procedure{GetPrices}{$t_0$} \Comment{next 48 h}
-\State $p \gets$ \Call{Load}{prices from $t_0$}
-\If{$p$ has gaps}
-  \State fill gaps with \Call{SyntheticTariff}{$t$} (or a price file)
-  \State \Call{Save}{$p$}
-\EndIf
-\State \Return $p$
-\EndProcedure
-\Statex
-\Procedure{SyntheticTariff}{$t$}
-\State $k \gets$ level of hour($t$) in \{off-peak, mid, peak\}
-\State \Return $base[k] \cdot (1+\varepsilon)$, $\varepsilon \sim \mathcal{N}(0,\sigma^2)$
+\Procedure{GetPrices}{$day$} \Comment{48 h from midnight of $day$}
+\State $p \gets$ the 96 prices in \texttt{app/prices.csv}
+\State $s \gets$ 192 start times from midnight of $day$, 15 min apart
+\State \Return table($start = s$, $price = p$ used twice)
 \EndProcedure
 \end{pseudo}
 
