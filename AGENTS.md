@@ -24,16 +24,29 @@ and explains every decision. The final demo for LG is on **Dec. 11, 2026**.
   templates filled with numbers from the scheduler.
 - Every plan is checked against hard rules (deadlines, quiet hours, safety) before it runs.
 - Manual override by the user always wins.
-- Appliances, prices and usage are simulated behind an interface, so real devices can replace them later.
+- The demo simulates appliance runs and can use historical wholesale prices. The forecast supplies price
+  estimates. The R5 scheduler compares valid start times on a 15-minute grid and picks the lowest-cost
+  run. For each slot, cost is the price per kWh × appliance power in kW × 0.25 hours. A run that
+  crosses an hour boundary uses the corresponding hourly rate for each slot. Results estimate costs
+  under the demo scenario.
 
 ## AI course part (ITE351)
 - Idea (submitted Nov. 4): use machine learning to forecast electricity prices and household
   energy use for the coming day, compare a few forecasting methods step by step, and use the
   forecasts to decide when appliances run and how much a household saves.
-- Possible data (not decided): hourly day-ahead prices from Nord Pool / ENTSO-E, and the UCI
-  "Individual Household Electric Power Consumption" dataset (sub-meters split kitchen and laundry room).
-- Note: the UCI data is one French household (2006–2010) and the prices are from other years, so the two
-  cannot be joined by date. Use them as typical daily/weekly patterns. Check the data access terms first.
+- Price data: South Korean wholesale System Marginal Price (SMP) from KPX/EPSIS. The `kpx-prices-15min`
+  branch contains `ai/convert_kpx.py` and `ai/data/kpx/prices_15min.csv` (`start`, `price` in KRW/kWh).
+  The CSV covers January 2024 to November 2026. The converter copies each observed hourly rate into its
+  four quarter-hour slots for the scheduler. Use hourly observations to forecast the next 24 hours and
+  repeat each forecast value across its four scheduler slots.
+- Usage data: Kaggle's UCI Household Electric Power Consumption dataset contains one-minute readings
+  from one French household (2006–2010), including kitchen and laundry circuit measurements. Aggregate
+  the minute readings to hourly kWh and flag incomplete hours. Forecast and evaluate the two datasets
+  separately because they cover different locations and periods.
+- Model candidates: Chronos-2 is the suggested first pretrained model to test, with TimesFM 2.5 and
+  Moirai 2.0 R Small as alternatives. Use chronological backtests against the same hour yesterday and
+  the same hour last week. Compare mean absolute error in KRW/kWh for price and kWh for usage, and
+  evaluate the cost of the recommended appliance runs using actual KPX prices. Model selection is pending.
 - The repo README is the course blog. Progress is reported there.
 
 ## SE course deliverables
