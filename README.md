@@ -73,4 +73,10 @@ We compared Chronos-2 with both seasonal baselines on November 10–16, 2026. At
 
 Chronos-2 reduced MAE by about 27% compared with the same-hour-last-week baseline, the stronger of the two baselines that week. The next step is to compare what the appliance schedules from each method would have cost at the observed KPX prices.
 
+![Bar chart of MAE in KRW/kWh for Chronos-2 (12.37), same hour last week (16.85), and same hour yesterday (18.60).](ai/figures/kpx_forecast_mae.png)
+
+![Hourly KPX prices from November 10–16, 2026, with observed prices and a separate comparison for each forecast method.](ai/figures/kpx_hourly_forecasts.png)
+
+We generated both figures in Python with Matplotlib. We matched the hourly predictions from the seven-day backtest to the observed KPX prices by timestamp, then averaged the absolute errors for the bar chart. In the line chart, the solid line shows observed prices and each dashed segment shows one 24-hour forecast.
+
 To reproduce the comparison, install `chronos-forecasting>=2.0` and `pandas` and run `python -m ai.chronos_2` from the repository root.
