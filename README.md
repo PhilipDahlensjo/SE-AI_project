@@ -8,6 +8,7 @@
 - [Research idea](#research-idea)
 - [Datasets](#datasets)
 - [III. Methodology](#iii-methodology)
+- [KPX price forecast results](#kpx-price-forecast-results)
 
 ## Group members
 
@@ -59,3 +60,17 @@ We will first test Amazon Chronos-2, a pretrained transformer for time-series fo
 ### Baselines and evaluation plan
 
 We will compare Chronos-2 with two seasonal baselines that reuse the value from the same hour yesterday or the same hour last week. At each backtest cutoff, every method will use only readings available by that cutoff to predict the next 24 hours. We will compare mean absolute error in KRW/kWh for prices and kWh for usage, then use actual KPX prices to see what each model's recommended appliance run would have cost. This comparison will guide the final model choice.
+
+## KPX price forecast results
+
+We compared Chronos-2 with both seasonal baselines on November 10–16, 2026. At midnight each day, each method forecast the next 24 hourly wholesale prices using only prices recorded before that cutoff. We compared all 168 forecasts per method with the observed KPX prices. Lower mean absolute error (MAE) means a more accurate price forecast.
+
+| Forecast method | MAE (KRW/kWh) |
+|---|---:|
+| Same hour yesterday | 18.60 |
+| Same hour last week | 16.85 |
+| Chronos-2 (median forecast) | **12.37** |
+
+Chronos-2 reduced MAE by about 27% compared with the same-hour-last-week baseline, the stronger of the two baselines that week. The next step is to compare what the appliance schedules from each method would have cost at the observed KPX prices.
+
+To reproduce the comparison, install `chronos-forecasting>=2.0` and `pandas` and run `python -m ai.chronos_2` from the repository root.
