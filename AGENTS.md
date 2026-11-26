@@ -7,7 +7,7 @@ EnergyPilot is a proactive agentic home energy optimizer. The resident states an
 ("laundry done by 07:00, keep the cost low") and the agent schedules flexible appliances
 (washing machine, dryer, dishwasher, one climate device) to the cheapest suitable hours.
 It predicts electricity prices and household usage, proposes a schedule that the resident accepts or changes,
-and explains every decision. The final demo for LG is on **Dec. 11, 2026**.
+and explains every decision. The final presentation is on **Dec. 4, 2026**.
 
 ## Two courses, one project
 - **CSE406 Software Engineering** (Hanyang University, group "EnergyPilot"): the whole system.
@@ -23,6 +23,8 @@ and explains every decision. The final demo for LG is on **Dec. 11, 2026**.
   times**. A deterministic scheduler calculates them, so the result is testable. Explanations are text
   templates filled with numbers from the scheduler.
 - Every plan is checked against hard rules (deadlines, quiet hours, safety) before it runs.
+  Status Nov. 26: the demo scheduler only checks the deadline. Quiet hours and the maximum household
+  load from the spec (R5) are not implemented yet.
 - Manual override by the user always wins.
 - The demo simulates appliance runs and can use historical wholesale prices. The forecast supplies price
   estimates. The R5 scheduler compares valid start times on a 15-minute grid and picks the lowest-cost
@@ -34,8 +36,9 @@ and explains every decision. The final demo for LG is on **Dec. 11, 2026**.
 - Idea (submitted Nov. 4): use machine learning to forecast electricity prices and household
   energy use for the coming day, compare a few forecasting methods step by step, and use the
   forecasts to decide when appliances run and how much a household saves.
-- Price data: South Korean wholesale System Marginal Price (SMP) from KPX/EPSIS. The `kpx-prices-15min`
-  branch contains `ai/convert_kpx.py` and `ai/data/kpx/prices_15min.csv` (`start`, `price` in KRW/kWh).
+- Price data: South Korean wholesale System Marginal Price (SMP) from KPX/EPSIS, in
+  `ai/convert_kpx.py` and `ai/data/kpx/prices_15min.csv` (`start`, `price` in KRW/kWh) on `main`.
+  The demo app does not use this file yet; it uses the made-up day in `app/prices.csv`.
   The CSV covers January 2024 to November 2026. The converter copies each observed hourly rate into its
   four quarter-hour slots for the scheduler. Use hourly observations to forecast the next 24 hours and
   repeat each forecast value across its four scheduler slots.
@@ -51,13 +54,15 @@ and explains every decision. The final demo for LG is on **Dec. 11, 2026**.
 
 ## SE course deliverables
 - A. Proposal/Requirements: done (Oct. 23/30).
-- B. Specification: due **Nov. 6 / Nov. 13**. Written in LaTeX (IEEE template) in `main.tex`
+- B. Specification: submitted (Nov. 6 / Nov. 13). Written in LaTeX (IEEE template) in `main.tex`
   at the repo root (A and B in one document, compiled to `EnergyPilot_A_B.pdf`).
   Contains: updated intro/requirements, III. Development environment (platform, language and why,
   cost estimate, versions/OS/hardware, commercial cloud such as AWS/GCP is a bonus, existing
   software/algorithms with references, task distribution), IV. Specifications (for each
   requirement: implementation at pseudocode level, diagrams recommended).
-- C. Design and D. Implementation are submitted together later. E. Presentation, user guide, installation guide.
+- C. Design and D. Implementation are submitted together later (date TBA). E. Presentation (Dec. 4),
+  user guide, installation guide.
+- Rebuild the PDF after changing `main.tex` (`tectonic -X compile main.tex`, or Overleaf) and commit both.
 - The professor asked us **not** to split requirements into FR/NFR at this stage. `main.tex` uses
   one list, R1–R9, and section IV has one specification per requirement with the same numbering.
   R4 (price and usage forecasting) is the AI course part, so it is a Must. `main.tex` is the source of truth for
@@ -81,12 +86,31 @@ Requirement numbers R1–R9 refer to `main.tex`. Each person owns their part and
 
 ## Repository and workflow
 - One shared GitHub repo for both courses: `SE-AI_project`.
-- Now: `README.md` (AI course blog), `main.tex` + `EnergyPilot_A_B.pdf` (SE documents), `AGENTS.md`.
-- Planned when coding starts: `ai/` (forecasting) and `app/` (Streamlit app with scheduler and simulator).
-  Don't move `main.tex` without asking the group.
-- Stack (decided in B, Nov. 5): Python 3.12 only, Streamlit for the interface, SQLite (one file) for data,
-  pandas/NumPy/scikit-learn, pytest. Run locally with `streamlit run app.py`. No login, no Docker, no separate
-  frontend or API server; cloud is an optional bonus. Ask the group before adding anything else.
+- Docs: `README.md` (AI course blog), `main.tex` + `EnergyPilot_A_B.pdf` (SE documents), `AGENTS.md`
+  (`CLAUDE.md` only imports this file, so edit `AGENTS.md`). Don't move `main.tex` without asking the group.
+- Code (status Nov. 26):
+  - `app.py` – Streamlit demo page (Jasmin, R1/R2): pick appliance and deadline, press Plan, see start time,
+    explanation and price chart.
+  - `app/prices.py` – `load_prices(day=None)` (Emil, R3): 48 h from midnight, made-up day from `app/prices.csv` used twice.
+  - `app/scheduler.py` – `cheapest_start(prices, duration_slots, deadline)` (Filip, R5).
+  - `app/report.py` – `run_cost(...)` and `savings(prices, start, earliest, duration_slots, power_kw)` (Emil, R8).
+  - `app/explanation.py` – `explain(appliance, prices, start, earliest, duration_slots, power_kw)` (Filip, R6),
+    built on `savings()`.
+  - `ai/convert_kpx.py` + `ai/data/kpx/` – KPX prices (Philip, R4 data). No forecasting code yet.
+  - `tests/` – pytest tests for each module, plus `test_app.py` that runs the demo page.
+  - Not built yet: SQLite database and decision log (R1/R6), override (R7), forecasting (R4), replanning (R9).
+- Shared interfaces (in use, don't change without asking):
+  - Price table: pandas DataFrame with columns `start` (timestamp) and `price` (KRW/kWh), one row per
+    15-minute slot, sorted by time.
+  - `cheapest_start(...)` returns `(start, cost)` for the cheapest run that ends by `deadline`, or `None`.
+    `cost` is for 1 kW; the caller multiplies by the appliance's power.
+  - `savings(...)` returns `{"cost", "base_cost", "saving_pct"}`. The baseline is starting at `earliest`.
+  - Forecasts (R4) must come back in the same price table format so the scheduler can use them directly.
+- Stack (decided in B, Nov. 5): Python 3.12 only, Streamlit (+ Altair for the chart) for the interface,
+  SQLite (one file) for data, pandas/NumPy, `chronos-forecasting` for R4, pytest. No login, no Docker,
+  no separate frontend or API server; cloud is an optional bonus. Ask the group before adding anything else.
+  There is no `requirements.txt` yet.
+- Run: `streamlit run app.py` for the demo, `pytest` for all tests (from the repo root).
 - Work on a branch and open a pull request. Never push directly to `main`. Another member reviews.
 - Tasks are tracked as GitHub Issues. Discussions happen in Slack, but decisions are written into the repo.
 - All members use Claude Pro. Each member must be able to explain their own part at the demo.
