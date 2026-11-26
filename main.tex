@@ -116,7 +116,7 @@ The user fills in a short form: which appliance, the earliest start and the dead
 The system has a price for every 15-minute slot of the next 48 hours, starting at midnight today. The first version uses a made-up daily price pattern, cheap at night and expensive in the morning and evening. Real prices from the Korea Power Exchange (KPX) can replace it later in the same file format.
 
 \subsection{R4: Price and usage forecast (Must)}
-The system predicts hourly prices and household consumption for the coming day, using two methods and keeping the one with the lowest error.
+The system predicts hourly prices and household consumption for the next 24 hours. It compares the pretrained Chronos-2 model with two simple baselines and keeps the method with the lowest error. Each hourly price forecast is repeated in its four 15-minute slots for the scheduler.
 
 \subsection{R5: Schedule (Must)}
 For each intent the agent proposes the start time with the lowest cost that meets the deadline, the quiet hours and the maximum household load. The plan is ready in under 10 seconds. When the user accepts it, the simulator starts the appliance at that time.
@@ -138,7 +138,7 @@ When the price forecast changes, the agent can plan the runs that have not start
 \subsection{Choice of Software Development Platform}
 \textbf{Platform.} EnergyPilot is a Python application with a web interface that runs on the user's own computer (\texttt{streamlit run app.py}) and is opened in a browser. It works the same on Windows, macOS and Linux, and needs no server and no installation for the user. We chose it because we want the simplest setup that every group member can run.
 
-\textbf{Programming language.} Python 3.12 is the only language in the project. It has the data libraries we need (pandas, NumPy, scikit-learn), which our AI course project also uses, and Streamlit lets us build the forms, tables and charts of the interface in the same language. We rejected a separate JavaScript frontend, an API server and a database server, because each would add a second language or one more thing to install and run.
+\textbf{Programming language.} Python 3.12 is the only language in the project. It has the data libraries we need (pandas, NumPy) and the Chronos-2 forecasting package, which our AI course project also uses, and Streamlit lets us build the forms, tables and charts of the interface in the same language. We rejected a separate JavaScript frontend, an API server and a database server, because each would add a second language or one more thing to install and run.
 
 \textbf{Version control and documents.} The code and this document are in a public GitHub repository, \url{https://github.com/PhilipDahlensjo/SE-AI_project}. The documents are LaTeX files in the repository (IEEEtran, also usable in Overleaf). We track work with issues and pull requests, and each issue names the requirement it implements.
 
@@ -161,7 +161,7 @@ PC, Jasmin Hansson & Windows 11 Home 10.0.26200, AMD Ryzen 7 7730U (8 cores), 16
 Operating system & Windows, macOS or Linux (same code)\\
 Language & Python 3.12\\
 Interface & Streamlit\\
-Data and ML & pandas, NumPy, scikit-learn\\
+Data and ML & pandas, NumPy, chronos-forecasting (Chronos-2, PyTorch)\\
 Database & SQLite (one file, built into Python)\\
 Tests & pytest\\
 Version control & Git and GitHub\\
@@ -198,8 +198,8 @@ Optional: LLM API (spending limit) & $\le$ 10\\
 \subsection{Software in Use}
 Products that do a similar task are described in Section~I-C. None of them schedules several appliances from a stated intent. We build on the following existing software and algorithms:
 \begin{itemize}
-\item \emph{Seasonal naive forecast}, which predicts the value from 24 hours earlier \cite{hyndman}, as the baseline forecaster.
-\item \emph{Gradient boosting} \cite{friedman} from scikit-learn \cite{sklearn} as the second forecaster.
+\item \emph{Seasonal naive forecasts} \cite{hyndman}, which repeat the value from the same hour yesterday or the same hour last week, as baselines.
+\item \emph{Chronos-2} \cite{chronos2}, a pretrained transformer for time-series forecasting \cite{chronos}, as the main forecaster, used without training on our data.
 \item \emph{Exhaustive search} over start slots in the scheduler, which we write ourselves.
 \item \emph{Streamlit} \cite{streamlit} for the interface and \emph{SQLite} \cite{sqlite} for the data.
 \item Later, optionally, \emph{LLM tool calling} \cite{claudedocs} for free-text intents, and the \emph{LG ThinQ Connect API} \cite{thinqconnect} and \emph{Matter} \cite{matter} for real appliances.
@@ -292,16 +292,18 @@ The price file \texttt{app/prices.csv} holds one day: a price in KRW/kWh for eac
 \end{pseudo}
 
 \subsection{R4: Price and usage forecast}
-We compare a baseline and one model, with the last seven days as validation data, and use the one with the lowest mean absolute error. This component is shared with our project in the AI course, which uses public price and consumption data (see the repository).
+Shared with our AI course project. Prices are hourly KPX wholesale prices and usage is hourly UCI household consumption, forecast separately. Each method predicts 24 h from the values before each daily cutoff in the last seven days, and we keep the one with the lowest mean absolute error (median forecast for Chronos-2).
 \begin{pseudo}
-\Procedure{Forecast}{$hist$} \Comment{next 24 h}
-\State train $\gets hist$ without last 7 days; val $\gets$ last 7 days
-\For{$m \in \{$SeasonalNaive, GradientBoosting$\}$}
-  \State fit $m$ on train; features: hour, weekday, $y_{t-24}$, $y_{t-168}$
-  \State $err[m] \gets$ MAE($m$.predict(val), val)
+\Procedure{Forecast}{$hist$} \Comment{hourly series, next 24 h}
+\For{$m \in \{$SameHourYesterday, SameHourLastWeek, Chronos2$\}$}
+  \For{each daily cutoff $c$ in the last 7 days}
+    \State $\hat{y} \gets m$.predict($hist$ before $c$, 24 h)
+    \State $err[m] \gets err[m] +$ MAE($\hat{y}$, $hist$ in the 24 h after $c$)
+  \EndFor
 \EndFor
-\State $m^* \gets \arg\min_m err[m]$; refit $m^*$ on all of $hist$
-\State \Return $m^*$.predict(next 24 h)
+\State $m^* \gets \arg\min_m err[m]$
+\State $\hat{y} \gets m^*$.predict($hist$, 24 h)
+\State \Return each $\hat{y}_h$ repeated in its four 15-min slots
 \EndProcedure
 \end{pseudo}
 
@@ -403,8 +405,8 @@ Runs that are manual or already started are never touched.
 \bibitem{matter} Connectivity Standards Alliance, ``Matter.'' [Online]. Available: \url{https://csa-iot.org/all-solutions/matter/}
 \bibitem{lightsail} Amazon Web Services, ``Lightsail instance bundles.'' [Online]. Available: \url{https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-bundles.html}
 \bibitem{hyndman} R. J. Hyndman and G. Athanasopoulos, \emph{Forecasting: Principles and Practice}, 3rd ed. Melbourne, Australia: OTexts, 2021. [Online]. Available: \url{https://otexts.com/fpp3/}
-\bibitem{friedman} J. H. Friedman, ``Greedy function approximation: A gradient boosting machine,'' \emph{Ann. Statist.}, vol. 29, no. 5, pp. 1189--1232, 2001.
-\bibitem{sklearn} F. Pedregosa \emph{et al.}, ``Scikit-learn: Machine learning in Python,'' \emph{J. Mach. Learn. Res.}, vol. 12, pp. 2825--2830, 2011.
+\bibitem{chronos} A. F. Ansari \emph{et al.}, ``Chronos: Learning the language of time series,'' \emph{Trans. Mach. Learn. Res.}, 2024.
+\bibitem{chronos2} Amazon, ``Chronos-2'' (model card), Hugging Face. [Online]. Available: \url{https://huggingface.co/amazon/chronos-2}
 \bibitem{streamlit} Streamlit. [Online]. Available: \url{https://streamlit.io/}
 \bibitem{sqlite} SQLite. [Online]. Available: \url{https://www.sqlite.org/}
 \bibitem{claudedocs} Anthropic, ``Claude API documentation.'' [Online]. Available: \url{https://docs.claude.com}
