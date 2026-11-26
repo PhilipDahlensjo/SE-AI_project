@@ -1,46 +1,72 @@
-"""Baseline price forecast (R4): tomorrow is like today.
+"""Baseline price forecasts (R4), the methods Chronos-2 is compared with.
 
-The forecast for the next day repeats today's 96 quarter-hour prices.
-Smarter methods are compared against this baseline later.
+Two seasonal naive baselines forecast the next 24 hourly prices:
+- same hour yesterday: repeat the 24 prices before the cutoff
+- same hour last week: repeat the 24 prices that started 7 days before the cutoff
+
+Forecasts are hourly, as in the KPX source. to_15min() repeats each hour in its
+four quarter-hour slots for the scheduler.
 
 Run:    python ai/baseline.py
-        Prints the mean absolute error over the last 30 days.
+        Backtests both baselines on the last 7 days (one cutoff per midnight)
+        and prints the mean absolute error in KRW/kWh.
 """
 from pathlib import Path
 
 import pandas as pd
 
 PRICES = Path(__file__).parent / "data" / "kpx" / "prices_15min.csv"
-ONE_DAY = pd.Timedelta(days=1)
+HOUR = pd.Timedelta(hours=1)
+DAY = pd.Timedelta(days=1)
 
 
-def load_prices(path=PRICES):
-    """Read the price file: columns start (timestamp) and price (KRW/kWh)."""
-    return pd.read_csv(path, parse_dates=["start"])
+def load_hourly_prices(path=PRICES):
+    """Hourly prices (start, price in KRW/kWh): one row per hour from the 15-minute file."""
+    prices = pd.read_csv(path, parse_dates=["start"])
+    return prices[prices["start"].dt.minute == 0].reset_index(drop=True)
 
 
-def forecast_next_day(prices, day):
-    """Forecast the prices of the day after `day` by repeating the prices of `day`."""
-    day = pd.Timestamp(day).normalize()
-    today = prices[(prices["start"] >= day) & (prices["start"] < day + ONE_DAY)]
-    return pd.DataFrame({"start": today["start"] + ONE_DAY, "price": today["price"].to_numpy()})
+def _repeat(history, cutoff, lag):
+    """Forecast the 24 hours from `cutoff` with the prices `lag` earlier."""
+    cutoff = pd.Timestamp(cutoff)
+    hours = pd.date_range(cutoff, periods=24, freq="h")
+    past = history.set_index("start")["price"]
+    return pd.DataFrame({"start": hours, "price": past[hours - lag].to_numpy()})
 
 
-def mean_absolute_error(prices, days):
-    """Average absolute difference (KRW/kWh) between forecast and actual price over `days`."""
-    actual = prices.set_index("start")["price"]
+def same_hour_yesterday(history, cutoff):
+    return _repeat(history, cutoff, DAY)
+
+
+def same_hour_last_week(history, cutoff):
+    return _repeat(history, cutoff, 7 * DAY)
+
+
+def to_15min(forecast):
+    """Repeat each hourly price in its four 15-minute slots (start, price)."""
+    return pd.concat(
+        [forecast.assign(start=forecast["start"] + pd.Timedelta(minutes=m)) for m in (0, 15, 30, 45)]
+    ).sort_values("start").reset_index(drop=True)
+
+
+def backtest(history, method, cutoffs):
+    """Mean absolute error (KRW/kWh) of `method` over the 24 hours after each cutoff.
+
+    The method only sees prices before the cutoff.
+    """
+    actual = history.set_index("start")["price"]
     errors = []
-    for day in days:
-        forecast = forecast_next_day(prices, day)
+    for cutoff in cutoffs:
+        forecast = method(history[history["start"] < cutoff], cutoff)
         errors.append(abs(forecast["price"].to_numpy() - actual[forecast["start"]].to_numpy()).mean())
     return sum(errors) / len(errors)
 
 
 if __name__ == "__main__":
-    prices = load_prices()
-    last_day = prices["start"].max().normalize()
-    days = pd.date_range(last_day - 30 * ONE_DAY, last_day - ONE_DAY)
-    mae = mean_absolute_error(prices, days)
-    print(f"Baseline 'tomorrow is like today', {len(days)} days up to {last_day.date()}:")
-    print(f"  mean absolute error: {mae:.2f} KRW/kWh")
-    print(f"  mean price:          {prices[prices['start'] >= days[0] + ONE_DAY]['price'].mean():.2f} KRW/kWh")
+    prices = load_hourly_prices()
+    last_cutoff = prices["start"].max().normalize()  # last day with all 24 hours
+    cutoffs = pd.date_range(last_cutoff - 6 * DAY, last_cutoff)
+    print(f"Backtest, {len(cutoffs)} daily cutoffs {cutoffs[0].date()} to {cutoffs[-1].date()}:")
+    for method in (same_hour_yesterday, same_hour_last_week):
+        print(f"  {method.__name__:20} MAE {backtest(prices, method, cutoffs):6.2f} KRW/kWh")
+    print(f"  mean price {prices[prices['start'] >= cutoffs[0]]['price'].mean():.2f} KRW/kWh")
