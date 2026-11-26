@@ -1,0 +1,162 @@
+# AGENTS.md
+
+# Part 1: Project context – EnergyPilot
+
+## What it is
+EnergyPilot is a proactive agentic home energy optimizer. The resident states an intent
+("laundry done by 07:00, keep the cost low") and the agent schedules flexible appliances
+(washing machine, dryer, dishwasher, one climate device) to the cheapest suitable hours.
+It predicts electricity prices and household usage, proposes a schedule that the resident accepts or changes,
+and explains every decision. The final demo for LG is on **Dec. 11, 2026**.
+
+## Two courses, one project
+- **CSE406 Software Engineering** (Hanyang University, group "EnergyPilot"): the whole system.
+  Members: Emil Ljungdell (Customer), Philip Dahlensjö (User), Jasmin Hansson (Software developer),
+  Filip Kadmark (Development manager).
+- **ITE351 AI & Applications** (Group 12, AI + SE): a sub-project of the SE system, the forecasting part.
+  Members: Filip Kadmark, Philip Dahlensjö, Jasmin Hansson, Lucas Roy-Picard.
+- The member lists differ by one person (Emil is SE only, Lucas is AI only). Keep this in mind
+  when writing author lists for each course.
+
+## Key design rules
+- The language model is optional and only reads free-text intents (R2, a Could). It **never decides start
+  times**. A deterministic scheduler calculates them, so the result is testable. Explanations are text
+  templates filled with numbers from the scheduler.
+- Every plan is checked against hard rules (deadlines, quiet hours, safety) before it runs.
+- Manual override by the user always wins.
+- The demo simulates appliance runs and can use historical wholesale prices. The forecast supplies price
+  estimates. The R5 scheduler compares valid start times on a 15-minute grid and picks the lowest-cost
+  run. For each slot, cost is the price per kWh × appliance power in kW × 0.25 hours. A run that
+  crosses an hour boundary uses the corresponding hourly rate for each slot. Results estimate costs
+  under the demo scenario.
+
+## AI course part (ITE351)
+- Idea (submitted Nov. 4): use machine learning to forecast electricity prices and household
+  energy use for the coming day, compare a few forecasting methods step by step, and use the
+  forecasts to decide when appliances run and how much a household saves.
+- Price data: South Korean wholesale System Marginal Price (SMP) from KPX/EPSIS. The `kpx-prices-15min`
+  branch contains `ai/convert_kpx.py` and `ai/data/kpx/prices_15min.csv` (`start`, `price` in KRW/kWh).
+  The CSV covers January 2024 to November 2026. The converter copies each observed hourly rate into its
+  four quarter-hour slots for the scheduler. Use hourly observations to forecast the next 24 hours and
+  repeat each forecast value across its four scheduler slots.
+- Usage data: Kaggle's UCI Household Electric Power Consumption dataset contains one-minute readings
+  from one French household (2006–2010), including kitchen and laundry circuit measurements. Aggregate
+  the minute readings to hourly kWh and flag incomplete hours. Forecast and evaluate the two datasets
+  separately because they cover different locations and periods.
+- Model candidates: Chronos-2 is the suggested first pretrained model to test, with TimesFM 2.5 and
+  Moirai 2.0 R Small as alternatives. Use chronological backtests against the same hour yesterday and
+  the same hour last week. Compare mean absolute error in KRW/kWh for price and kWh for usage, and
+  evaluate the cost of the recommended appliance runs using actual KPX prices. Model selection is pending.
+- The repo README is the course blog. Progress is reported there.
+
+## SE course deliverables
+- A. Proposal/Requirements: done (Oct. 23/30).
+- B. Specification: due **Nov. 6 / Nov. 13**. Written in LaTeX (IEEE template) in `main.tex`
+  at the repo root (A and B in one document, compiled to `EnergyPilot_A_B.pdf`).
+  Contains: updated intro/requirements, III. Development environment (platform, language and why,
+  cost estimate, versions/OS/hardware, commercial cloud such as AWS/GCP is a bonus, existing
+  software/algorithms with references, task distribution), IV. Specifications (for each
+  requirement: implementation at pseudocode level, diagrams recommended).
+- C. Design and D. Implementation are submitted together later. E. Presentation, user guide, installation guide.
+- The professor asked us **not** to split requirements into FR/NFR at this stage. `main.tex` uses
+  one list, R1–R9, and section IV has one specification per requirement with the same numbering.
+  R4 (price and usage forecasting) is the AI course part, so it is a Must. `main.tex` is the source of truth for
+  the requirements; keep this file in sync if they change.
+
+## Work split (agreed Nov. 12, can change)
+Requirement numbers R1–R9 refer to `main.tex`. Each person owns their part and writes its tests.
+
+| Person | Part | Requirements |
+|---|---|---|
+| Jasmin Hansson | Streamlit app, SQLite database, forms for appliances and intents, override | R1, R2, R7 |
+| Filip Kadmark | Scheduler (picks the cheapest allowed start time), explanations, replanning | R5, R6, R9 |
+| Emil Ljungdell | Electricity prices (synthetic tariff, price file) and savings report | R3, R8 |
+| Philip Dahlensjö + Lucas Roy-Picard | Price and usage forecasting, data analysis, AI course blog | R4 |
+
+- Emil is SE only, so he does not own AI course parts. Lucas is AI only, so his work stays in `ai/`.
+- Shared interfaces between the parts (forecast format, `Intent`, `Run`) are agreed by the group
+  first and written here before anyone builds on them. Don't change a shared interface without asking.
+- When you work on a task, stay inside your own part. If a change is needed in someone else's part,
+  say so and ask instead of editing it.
+
+## Repository and workflow
+- One shared GitHub repo for both courses: `SE-AI_project`.
+- Now: `README.md` (AI course blog), `main.tex` + `EnergyPilot_A_B.pdf` (SE documents), `AGENTS.md`.
+- Planned when coding starts: `ai/` (forecasting) and `app/` (Streamlit app with scheduler and simulator).
+  Don't move `main.tex` without asking the group.
+- Stack (decided in B, Nov. 5): Python 3.12 only, Streamlit for the interface, SQLite (one file) for data,
+  pandas/NumPy/scikit-learn, pytest. Run locally with `streamlit run app.py`. No login, no Docker, no separate
+  frontend or API server; cloud is an optional bonus. Ask the group before adding anything else.
+- Work on a branch and open a pull request. Never push directly to `main`. Another member reviews.
+- Tasks are tracked as GitHub Issues. Discussions happen in Slack, but decisions are written into the repo.
+- All members use Claude Pro. Each member must be able to explain their own part at the demo.
+
+---
+
+# Part 2: Coding guidelines (from Andrej Karpathy, suggested by the professor)
+
+Source: https://github.com/multica-ai/andrej-karpathy-skills/blob/main/CLAUDE.md
+
+Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+## 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+---
+
+**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
