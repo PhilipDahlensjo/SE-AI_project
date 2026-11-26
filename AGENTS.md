@@ -7,7 +7,8 @@ EnergyPilot is a proactive agentic home energy optimizer. The resident states an
 ("laundry done by 07:00, keep the cost low") and the agent schedules flexible appliances
 (washing machine, dryer, dishwasher, one climate device) to the cheapest suitable hours.
 It predicts electricity prices and household usage, proposes a schedule that the resident accepts or changes,
-and explains every decision. The final presentation is on **Dec. 4, 2026**.
+and explains every decision. The course presentation is on **Dec. 4, 2026**, and the final demo
+for LG is on **Dec. 11, 2026**.
 
 ## Two courses, one project
 - **CSE406 Software Engineering** (Hanyang University, group "EnergyPilot"): the whole system.
@@ -60,7 +61,7 @@ and explains every decision. The final presentation is on **Dec. 4, 2026**.
   cost estimate, versions/OS/hardware, commercial cloud such as AWS/GCP is a bonus, existing
   software/algorithms with references, task distribution), IV. Specifications (for each
   requirement: implementation at pseudocode level, diagrams recommended).
-- C. Design and D. Implementation are submitted together later (date TBA). E. Presentation (Dec. 4),
+- C. Design and D. Implementation are submitted together later (date TBA). E. Presentation (Dec. 4), LG demo (Dec. 11),
   user guide, installation guide.
 - Rebuild the PDF after changing `main.tex` (`tectonic -X compile main.tex`, or Overleaf) and commit both.
 - The professor asked us **not** to split requirements into FR/NFR at this stage. `main.tex` uses
