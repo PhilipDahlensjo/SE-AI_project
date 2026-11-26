@@ -12,6 +12,10 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+from app.explanation import explain
+from app.prices import load_prices
+from app.scheduler import cheapest_start
+
 SLOT = timedelta(minutes=15)
 UNIT = "KRW"
 
@@ -23,43 +27,14 @@ APPLIANCES = {
 }
 
 
-def temp_prices(day):
-    """TEMPORARY made-up prices until the price file (#7) is ready.
-
-    Agreed format: columns start, price (KRW/kWh), one row per 15-minute slot,
-    48 hours from midnight of `day` (192 rows). Cheap at night (lowest 03:00-05:00),
-    expensive in the morning and evening.
-    """
-    hourly = [95, 90, 85, 80, 80, 85, 90] + [130, 140, 135] + [115] * 7 + [140, 145, 140, 125, 110] + [100, 95]
-    start = datetime.combine(day, time())
-    rows = [(start + i * SLOT, hourly[i // 4 % 24]) for i in range(192)]
-    return pd.DataFrame(rows, columns=["start", "price"])
-
-
-def cheapest_start(prices, duration_slots, deadline):
-    """TEMPORARY stand-in for the scheduler (#8), with the agreed signature.
-
-    Returns (start, cost) for the cheapest window that ends by `deadline`, or None
-    if nothing fits. Cost is for 1 kW: sum of slot prices x 0.25 h.
-    """
-    best = None
-    for i in range(len(prices) - duration_slots + 1):
-        if prices["start"].iloc[i] + duration_slots * SLOT > deadline:
-            break
-        cost = prices["price"].iloc[i:i + duration_slots].sum() * 0.25
-        if best is None or cost < best[1]:
-            best = (prices["start"].iloc[i], cost)
-    return best
-
-
 st.set_page_config(page_title="EnergyPilot", page_icon="⚡")
 st.title("EnergyPilot")
-st.caption("Prices are temporary made-up values until the price file is ready.")
+st.caption("Prices are made-up example prices (KRW/kWh), so the saving is an estimate, not a real bill.")
 
 today = date.today()
 # Plan from the next 15-minute slot, so a start time is never in the past.
 earliest = pd.Timestamp.now().ceil("15min")
-prices = temp_prices(today)
+prices = load_prices(today)
 prices = prices[prices["start"] >= earliest].reset_index(drop=True)
 
 appliance = st.selectbox("Appliance", list(APPLIANCES))
@@ -81,14 +56,10 @@ if st.button("Plan", type="primary"):
         start, cost_1kw = result
         end = start + slots * SLOT
         cost = cost_1kw * power
-        first_cost = prices["price"].iloc[:slots].sum() * 0.25 * power
         window = (start, end)
         st.success(f"Starts {start:%H:%M}, costs {cost:.0f} {UNIT}")
-        st.write(
-            f"The {appliance.lower()} runs {start:%a %H:%M}–{end:%H:%M} and is done before "
-            f"{deadline:%a %H:%M}. This is the cheapest {run_minutes}-minute window before the "
-            f"deadline. Starting now ({earliest:%H:%M}) would cost {first_cost:.0f} {UNIT}."
-        )
+        st.write(f"{explain(appliance, prices, start, earliest, slots, power)} "
+                 f"Done before the deadline, {deadline:%a %H:%M}.")
 
 chart = alt.Chart(prices).mark_line(interpolate="step-after").encode(
     x=alt.X("start:T", title="Time", axis=alt.Axis(format="%a %H:%M")),  # 24-hour, like "Done by"
